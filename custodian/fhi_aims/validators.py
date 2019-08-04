@@ -23,3 +23,22 @@ class AimsConvergedValidator(Validator):
         except:
             return False
         return converged
+
+
+class AimsSecondValidator(Validator):
+    """
+    """
+
+    def __init__(self):
+        pass
+
+    def check(self):
+        with open('run', 'rt') as f:
+            aims_out = f.readlines()
+
+        converged = False
+        for line in aims_out:
+            if 'Have a nice day.' in line:
+                converged = True
+
+        return converged
