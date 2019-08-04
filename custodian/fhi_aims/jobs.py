@@ -152,6 +152,17 @@ class AimsJob(Job):
 
 
     @classmethod
+    def tddft_run(cls, aims_cmd):
+        """
+
+        :param aims_cmd:
+        :return:
+        """
+
+        pass
+
+
+    @classmethod
     def full_opt_run(cls, aims_cmd, converged_forces=0.01, max_steps=10, **aims_job_kwargs):
         """
         Returns a generator of jobs for a full optimization run. Basically,

@@ -76,7 +76,6 @@ class AimsRelaxHandler(ErrorHandler):
         actions = []
 
         if "energy_F_inconsistent" in self.errors:
-            print('correcting en_F')
             os.rename('geometry.in.next_step', 'geometry.in')
             actions.append({'fixed': 'geo_step -> geo'})
 #        if 'keyword_error' in self.errors:
