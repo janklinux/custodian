@@ -19,8 +19,6 @@ class AimsConvergedValidator(Validator):
         with open('run', 'rt') as f:
             aims_out = f.readlines()
 
-        print('READ: ', aims_out[0])
-
         converged = False
         for line in aims_out:
             if 'Have a nice day.' in line:
