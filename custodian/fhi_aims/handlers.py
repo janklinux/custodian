@@ -60,6 +60,8 @@ class AimsErrorHandler(ErrorHandler):
         self.error_count = Counter()
         self.errors_subset_to_catch = errors_subset_to_catch or list(AimsErrorHandler.error_msgs.keys())
 
+        print(list(AimsErrorHandler.error_msgs.keys()))
+
     def check(self):
         self.errors = set()
         with open(self.output_filename, "r") as f:
