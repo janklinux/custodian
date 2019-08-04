@@ -36,8 +36,8 @@ class AimsErrorHandler(ErrorHandler):
 
     error_msgs = {
         "energy_F_inconsistent": ["*** trusted_descent: Numerical inconsistency "
-                                  "of forces and energy above energy_tolerance."]
-    }
+                                  "of forces and energy above energy_tolerance."],
+        'keyword_error': ['* Unknown keyword']}
 
     def __init__(self, output_filename="run", errors_subset_to_catch=None):
         """
@@ -48,18 +48,10 @@ class AimsErrorHandler(ErrorHandler):
                 is being redirected. The error messages that are checked are
                 present in the stdout. Defaults to "vasp.out", which is the
                 default redirect used by :class:`custodian.vasp.jobs.VaspJob`.
-            errors_subset_to_detect (list): A subset of errors to catch. The
-                default is None, which means all supported errors are detected.
-                Use this to only catch only a subset of supported errors.
-                E.g., ["eddrrm", "zheev"] will only catch the eddrmm and zheev
-                errors, and not others. If you wish to only excluded one or
-                two of the errors, you can create this list by the following
-                lines:
 
                 ```
                 subset = list(VaspErrorHandler.error_msgs.keys())
                 subset.pop("eddrrm")
-
                 handler = VaspErrorHandler(errors_subset_to_catch=subset)
                 ```
         """
@@ -72,14 +64,12 @@ class AimsErrorHandler(ErrorHandler):
         self.errors = set()
         with open(self.output_filename, "r") as f:
             for line in f:
-                l = line.strip()
                 for err, msgs in AimsErrorHandler.error_msgs.items():
                     if err in self.errors_subset_to_catch:
                         for msg in msgs:
-                            if l.find(msg) != -1:
+                            if line.strip().find(msg) != -1:
                                 self.errors.add(err)
         return len(self.errors) > 0
-
 
     def correct(self):
         backup(AIMS_BACKUP_FILES | {self.output_filename})
@@ -87,6 +77,9 @@ class AimsErrorHandler(ErrorHandler):
 
         if "energy_F_inconsistent" in self.errors:
             actions.append({'action': 'continue_relaxation'})
+
+        if 'keyword_error' in self.errors:
+            actions.append({'action': 'fizzle'})
 
         return {"errors": list(self.errors), "actions": actions}
 
