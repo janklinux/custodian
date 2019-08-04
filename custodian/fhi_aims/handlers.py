@@ -67,8 +67,6 @@ class AimsErrorHandler(ErrorHandler):
         with open(self.output_filename, "r") as f:
             for line in f:
                 for err, msgs in AimsErrorHandler.error_msgs.items():
-                    print('looking at: {} | {}'.format(err, msgs))
-                    print('in: ', self.errors_subset_to_catch)
                     if err in self.errors_subset_to_catch:
                         for msg in msgs:
                             if line.strip().find(msg) != -1:
