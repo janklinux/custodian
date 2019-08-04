@@ -14,7 +14,7 @@ class AimsConvergedValidator(Validator):
         pass
 
     def check(self):
-        print('checking')
+        print('VALIDATOR')
 
         with open('run', 'rt') as f:
             aims_out = f.readlines()

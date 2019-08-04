@@ -18,15 +18,15 @@ by modifying the input files.
 __author__ = "Shyue Ping Ong, William Davidson Richards, Anubhav Jain, " \
              "Wei Chen, Stephen Dacek, Jan Kloppenburg"
 __version__ = "0.1"
-__maintainer__ = "Shyue Ping Ong"
-__email__ = "ongsp@ucsd.edu"
+__maintainer__ = "Jan Kloppenburg"
+__email__ = "jank@numphys.org"
 __status__ = "Beta"
-__date__ = "2/4/13"
+__date__ = "4Aug2019"
 
 AIMS_BACKUP_FILES = {"run", "geometry.in.next_step"}
 
 
-class AimsErrorHandler(ErrorHandler):
+class AimsRelaxHandler(ErrorHandler):
     """
     Master VaspErrorHandler class that handles a number of common errors
     that occur during VASP runs.
@@ -58,35 +58,29 @@ class AimsErrorHandler(ErrorHandler):
         self.output_filename = output_filename
         self.errors = set()
         self.error_count = Counter()
-        self.errors_subset_to_catch = errors_subset_to_catch or list(AimsErrorHandler.error_msgs.keys())
-
-        print(list(AimsErrorHandler.error_msgs.keys()))
+        self.errors_subset_to_catch = errors_subset_to_catch or list(AimsRelaxHandler.error_msgs.keys())
 
     def check(self):
         self.errors = set()
         with open(self.output_filename, "r") as f:
             for line in f:
-                for err, msgs in AimsErrorHandler.error_msgs.items():
+                for err, msgs in AimsRelaxHandler.error_msgs.items():
                     if err in self.errors_subset_to_catch:
                         for msg in msgs:
-                            if line.strip().find(msg):
+                            if line.strip().find(msg) != -1:
                                 self.errors.add(err)
-        print('FOUND: ', self.errors)
         return len(self.errors) > 0
 
     def correct(self):
         backup(AIMS_BACKUP_FILES | {self.output_filename})
         actions = []
 
-        print('correcting')
-
         if "energy_F_inconsistent" in self.errors:
-            actions.append({"file": "geometry.in.next_step",
-                                    "action": {"_file_copy": {'dest': "geometry.in"}}})
-#            actions.append({'action': 'continue_relaxation'})
-
-        if 'keyword_error' in self.errors:
-            actions.append({'action': 'fizzle'})
+            print('correcting en_F')
+            os.rename('geometry.in.next_step', 'geometry.in')
+            actions.append({'fixed': 'geo_step -> geo'})
+#        if 'keyword_error' in self.errors:
+#            actions.append({'action': 'fizzle'})
 
         return {"errors": list(self.errors), "actions": actions}
 

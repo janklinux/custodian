@@ -156,26 +156,21 @@ class AimsJob(Job):
         """
         Returns a generator of jobs for a full optimization run. Basically,
         this runs an infinite series of geometry optimization jobs until the
-        % vol change in a particular optimization is less than vol_change_tol.
+        structure is either below threshold or max_steps is reached.
 
         Args:
-            vasp_cmd (str): Command to run vasp as a list of args. For example,
+            aims_cmd (str): Command to run aims as a list of args. For example,
                 if you are using mpirun, it can be something like
-                ["mpirun", "pvasp.5.2.11"]
-            vol_change_tol (float): The tolerance at which to stop a run.
-                Defaults to 0.05, i.e., 5%.
-            max_steps (int): The maximum number of runs. Defaults to 10 (
-                highly unlikely that this limit is ever reached).
-            ediffg (float): Force convergence criteria for subsequent runs (
-                ignored for the initial run.)
-            half_kpts_first_relax (bool): Whether to halve the kpoint grid
-                for the first relaxation. Speeds up difficult convergence
-                considerably. Defaults to False.
-            \*\*vasp_job_kwargs: Passthrough kwargs to VaspJob. See
-                :class:`custodian.vasp.jobs.VaspJob`.
+                ["mpirun", "aims.VERSION.scalapack.mpi"]
+            max_steps (int): The maximum number of runs. Defaults to 10.
+
+            **vasp_job_kwargs: Passthrough kwargs to AimsJob. See
+                :class:`custodian.fhi_aims.jobs.AimsJob`.
         Returns:
             Generator of jobs.
         """
+
+        converged_forces = converged_forces
 
         pass
 
@@ -200,4 +195,4 @@ class AimsJob(Job):
 
             return np.amin(max_forces)
 
-        yield AimsJob(aims_cmd.split(), final=False, suffix=".relax%d" % (i+1), **aims_job_kwargs)
+        yield AimsJob(aims_cmd, final=False, suffix=".relax%d" % (i+1), **aims_job_kwargs)
