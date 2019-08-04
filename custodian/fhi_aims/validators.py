@@ -7,26 +7,7 @@ from custodian.custodian import Validator
 
 class AimsConvergedValidator(Validator):
     """
-    Checks for convergence
-    """
-
-    def __init__(self):
-        pass
-
-    def check(self):
-        converged = False
-        try:
-            with open('run', 'rt') as f:
-                for line in f:
-                    if 'Have a nice day.' in line:
-                        converged = True
-        except:
-            return False
-        return converged
-
-
-class AimsSecondValidator(Validator):
-    """
+    Inverse logic?
     """
 
     def __init__(self):
@@ -44,7 +25,5 @@ class AimsSecondValidator(Validator):
         for line in aims_out:
             if 'Have a nice day.' in line:
                 converged = True
-
-        print('CONVERGED: ', converged)
 
         return not converged
