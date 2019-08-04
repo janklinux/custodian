@@ -32,7 +32,8 @@ class AimsErrorHandler(ErrorHandler):
     that occur during VASP runs.
     """
 
-    is_monitor = True
+    is_monitor = False
+    is_terminating = False
 
     error_msgs = {
         "energy_F_inconsistent": ["** Inconsistency of forces<->energy above specified tolerance."],
@@ -76,6 +77,8 @@ class AimsErrorHandler(ErrorHandler):
     def correct(self):
         backup(AIMS_BACKUP_FILES | {self.output_filename})
         actions = []
+
+        print('correcting')
 
         if "energy_F_inconsistent" in self.errors:
             actions.append({"file": "geometry.in.next_step",
