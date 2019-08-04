@@ -47,4 +47,4 @@ class AimsSecondValidator(Validator):
 
         print('CONVERGED: ', converged)
 
-        return converged
+        return not converged
