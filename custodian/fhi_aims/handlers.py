@@ -78,8 +78,6 @@ class AimsRelaxHandler(ErrorHandler):
         if "energy_F_inconsistent" in self.errors:
             os.rename('geometry.in.next_step', 'geometry.in')
             actions.append({'fixed': 'geo_step -> geo'})
-#        if 'keyword_error' in self.errors:
-#            actions.append({'action': 'fizzle'})
 
         return {"errors": list(self.errors), "actions": actions}
 
