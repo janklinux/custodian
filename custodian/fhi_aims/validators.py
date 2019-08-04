@@ -38,12 +38,13 @@ class AimsSecondValidator(Validator):
         with open('run', 'rt') as f:
             aims_out = f.readlines()
 
-        print('READ: ', aims_out)
+        print('READ: ', aims_out[0])
 
         converged = False
         for line in aims_out:
-            print(line)
             if 'Have a nice day.' in line:
                 converged = True
+
+        print('CONVERGED: ', converged)
 
         return converged
