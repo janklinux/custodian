@@ -70,6 +70,7 @@ class AimsErrorHandler(ErrorHandler):
                         for msg in msgs:
                             if line.strip().find(msg) != -1:
                                 self.errors.add(err)
+        print('FOUND: ', self.errors)
         return len(self.errors) > 0
 
     def correct(self):
