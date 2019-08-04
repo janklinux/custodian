@@ -35,8 +35,7 @@ class AimsErrorHandler(ErrorHandler):
     is_monitor = True
 
     error_msgs = {
-        "energy_F_inconsistent": ["*** trusted_descent: Numerical inconsistency "
-                                  "of forces and energy above energy_tolerance."],
+        "energy_F_inconsistent": ["  ** Inconsistency of forces<->energy above specified tolerance."],
         'keyword_error': ['* Unknown keyword']}
 
     def __init__(self, output_filename="run", errors_subset_to_catch=None):
