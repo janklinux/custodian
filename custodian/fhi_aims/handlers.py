@@ -78,7 +78,9 @@ class AimsErrorHandler(ErrorHandler):
         actions = []
 
         if "energy_F_inconsistent" in self.errors:
-            actions.append({'action': 'continue_relaxation'})
+            actions.append({"file": "geometry.in.next_step",
+                                    "action": {"_file_copy": {'dest': "geometry.in"}}})
+#            actions.append({'action': 'continue_relaxation'})
 
         if 'keyword_error' in self.errors:
             actions.append({'action': 'fizzle'})
