@@ -35,7 +35,7 @@ class AimsErrorHandler(ErrorHandler):
     is_monitor = True
 
     error_msgs = {
-        "energy_F_inconsistent": ["  ** Inconsistency of forces<->energy above specified tolerance."],
+        "energy_F_inconsistent": ["** Inconsistency of forces<->energy above specified tolerance."],
         'keyword_error': ['* Unknown keyword']}
 
     def __init__(self, output_filename="run", errors_subset_to_catch=None):
@@ -68,7 +68,7 @@ class AimsErrorHandler(ErrorHandler):
                 for err, msgs in AimsErrorHandler.error_msgs.items():
                     if err in self.errors_subset_to_catch:
                         for msg in msgs:
-                            if line.strip().find(msg) != -1:
+                            if line.strip().find(msg):
                                 self.errors.add(err)
         print('FOUND: ', self.errors)
         return len(self.errors) > 0
