@@ -20,8 +20,8 @@ from monty.serialization import loadfn
 
 from custodian.custodian import ErrorHandler
 from custodian.utils import backup
-from pymatgen.io.vasp import Poscar, VaspInput, Incar, Kpoints, Vasprun, \
-    Oszicar, Outcar
+from pymatgen.io.vasp.inputs import Poscar, VaspInput, Incar, Kpoints
+from pymatgen.io.vasp.outputs import Vasprun, Oszicar, Outcar
 from pymatgen.transformations.standard_transformations import \
     SupercellTransformation
 
@@ -830,6 +830,8 @@ class UnconvergedErrorHandler(ErrorHandler):
             return {"errors": ["Unconverged"], "actions": None}
 
 
+@deprecated(message="This handler is no longer supported and its use is no "
+                    "longer recommended. It will be removed in v2020.x.")
 class MaxForceErrorHandler(ErrorHandler):
     """
     Checks that the desired force convergence has been achieved. Otherwise
