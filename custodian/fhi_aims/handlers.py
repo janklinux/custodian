@@ -144,6 +144,8 @@ class ConvergenceEnhancer(ErrorHandler):
                         force_position = 13
                         is_collinear = False
 
+        log_out = open('LOG_OUT', 'wt')
+
         scf_line = []
         with open(self.output_filename, 'rt') as f:
             is_modified = -1
@@ -178,24 +180,23 @@ class ConvergenceEnhancer(ErrorHandler):
 
         if is_modified and os.path.isfile('control.update.in'):
             if self.stage_224 or self.stage_112 and not is_converged:
-                print('rmming update.in')
+                log_out.write('rmming update.in\n')
                 os.unlink('control.update.in')
             else:
                 with open('control.update.in', 'wt') as f:
                     f.write('sc_accuracy_rho {:3.3e}\n'.format(sc_rho))
                     f.write('sc_accuracy_eev {:3.3e}\n'.format(sc_eev))
                     f.write('sc_accuracy_etot {:3.3e}'.format(sc_tot))
-                    self.mod_count += 1
-                    print('Number of modifications: {:2d}\n'.format(self.mod_count))
+                self.mod_count += 1
+                log_out.write('Number of modifications: {:2d}\n'.format(self.mod_count))
 
         if len(scf_line) < self.min_scf_steps:
             return False  # SKIP CHECK if less than n SCF cycles
 
-        with open('fuck_1', 'wt') as f:
-            f.write('STEPS NOW 1: {}'.format(self.min_scf_steps))
+        log_out.write('STEPS NOW 1: {}\n'.format(self.min_scf_steps))
 
         if all(rho_d) > sc_rho and all(eev) > sc_eev and all(etot) > sc_tot:
-            print('non-convergent, needs fix', self.stage_224, self.stage_112)
+            log_out.write('non-convergent, needs fix {} {}\n'.format(self.stage_224, self.stage_112))
             if not self.stage_224 and not self.stage_112:
                 with open('control.update.in', 'wt') as f:
                     f.write('sc_accuracy_rho 1e-2\n')
@@ -203,8 +204,7 @@ class ConvergenceEnhancer(ErrorHandler):
                     f.write('sc_accuracy_etot 1e-4')
                 self.stage_224 = True
                 self.min_scf_steps += 100
-                with open('fuck_2', 'wt') as f:
-                    f.write('STEPS NOW 2: {}'.format(self.min_scf_steps))
+                log_out.write('STEPS NOW 2: {}\n'.format(self.min_scf_steps))
             elif self.stage_224 and not self.stage_112:
                 with open('control.update.in', 'wt') as f:
                     f.write('sc_accuracy_rho 1e-1\n')
@@ -212,11 +212,12 @@ class ConvergenceEnhancer(ErrorHandler):
                     f.write('sc_accuracy_etot 1e-2')
                 self.stage_112 = True
                 self.min_scf_steps += 150
-                with open('fuck_3', 'wt') as f:
-                    f.write('STEPS NOW 3: {}'.format(self.min_scf_steps))
+                log_out.write('STEPS NOW 3: {}\n'.format(self.min_scf_steps))
             elif self.stage_224 and self.stage_112:
                 print('handler out of choices, please implement more solutions...')
                 # return True  # HARD ABORT - treat as Error as this point
+
+        log_out.close()
 
     def correct(self):
         backup(AIMS_BACKUP_FILES | {self.output_filename})
