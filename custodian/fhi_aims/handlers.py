@@ -144,7 +144,7 @@ class ConvergenceEnhancer(ErrorHandler):
                         force_position = 13
                         is_collinear = False
 
-        log_out = open('LOG_OUT', 'wt')
+        log_out = open('LOG_OUT', 'a+')
 
         scf_line = []
         with open(self.output_filename, 'rt') as f:
