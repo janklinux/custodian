@@ -191,7 +191,7 @@ class ConvergenceEnhancer(ErrorHandler):
         if len(scf_line) < self.min_scf_steps:
             return False  # SKIP CHECK if less than n SCF cycles
 
-        print('STEPS NOW: ', self.min_scf_steps)
+        print('STEPS NOW 1: ', self.min_scf_steps)
 
         if all(rho_d) > sc_rho and all(eev) > sc_eev and all(etot) > sc_tot:
             print('non-convergent, needs fix', self.stage_224, self.stage_112)
@@ -202,7 +202,7 @@ class ConvergenceEnhancer(ErrorHandler):
                     f.write('sc_accuracy_etot 1e-4')
                     self.stage_224 = True
                     self.min_scf_steps += 100
-                    print('STEPS NOW: ', self.min_scf_steps)
+                    print('STEPS NOW 2: ', self.min_scf_steps)
             elif self.stage_224 and not self.stage_112:
                 with open('control.update.in', 'wt') as f:
                     f.write('sc_accuracy_rho 1e-1\n')
@@ -210,7 +210,7 @@ class ConvergenceEnhancer(ErrorHandler):
                     f.write('sc_accuracy_etot 1e-2')
                     self.stage_112 = True
                     self.min_scf_steps += 150
-                    print('STEPS NOW: ', self.min_scf_steps)
+                    print('STEPS NOW 3: ', self.min_scf_steps)
             elif self.stage_224 and self.stage_112:
                 print('handler out of choices, please implement more solutions...')
                 # return True  # HARD ABORT - treat as Error as this point
