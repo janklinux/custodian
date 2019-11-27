@@ -35,7 +35,7 @@ AIMS_OUTPUT_FILES = ['geometry.in.next_step']
 
 class AimsJob(Job):
     """
-    A basic vasp job. Just runs whatever is in the directory. But conceivably
+    A basic job. Just runs whatever is in the directory. But conceivably
     can be a complex processing of inputs etc. with initialization.
     """
 
@@ -48,9 +48,9 @@ class AimsJob(Job):
         of the static constructors. The defaults are usually fine too.
 
         Args:
-            vasp_cmd (str): Command to run vasp as a list of args. For example,
+            aims_cmd (str): Command to run aims as a list of args. For example,
                 if you are using mpirun, it can be something like
-                ["mpirun", "pvasp.5.2.11"]
+                ["mpirun", "aims"]
             output_file (str): Name of file to direct standard out to.
                 Defaults to "vasp.out".
             stderr_file (str): Name of file to direct standard error to.

@@ -95,10 +95,9 @@ class FrozenJobErrorHandler(ErrorHandler):
         Initializes the handler with the output file to check.
 
         Args:
-            output_filename (str): This is the file where the stdout for vasp
+            output_filename (str): This is the file where the stdout
                 is being redirected. The error messages that are checked are
-                present in the stdout. Defaults to "vasp.out", which is the
-                default redirect used by :class:`custodian.vasp.jobs.VaspJob`.
+                present in the stdout.
             timeout (int): The time in seconds between checks where if there
                 is no activity on the output file, the run is considered
                 frozen. Defaults to 3600 seconds, i.e., 1 hour.
@@ -115,3 +114,100 @@ class FrozenJobErrorHandler(ErrorHandler):
         backup(AIMS_BACKUP_FILES | {self.output_filename})
         actions = []
         return {"errors": ["Frozen job"], "actions": actions}
+
+
+class ConvergenceEnhancer(ErrorHandler):
+    """
+    Monitors convergence progress and adjusts intermediate settings for:
+            sc_accuracy_rho | sc_accuracy_eev | sc_accuracy_etot
+    via control.update.in
+    """
+
+    is_monitor = True
+
+    def __init__(self, output_filename='run', min_scf_steps=150):
+        self.output_filename = output_filename
+        self.min_scf_steps = min_scf_steps
+        self.stage_224 = False
+        self.stage_112 = False
+
+    def check(self):
+        sc_rho = -1
+        sc_eev = -1
+        sc_tot = -1
+        with open('control.in', 'rt') as f:
+            for line in f:
+                if 'sc_accuracy_rho' in line:
+                    sc_rho = float(line.split()[1])
+                if 'sc_accuracy_eev' in line:
+                    sc_eev = float(line.split()[1])
+                if 'sc_accuracy_etot' in line:
+                    sc_tot = float(line.split()[1])
+                if 'spin' in line:
+                    if line.split()[1] == 'collinear':
+                        force_position = 14
+                        is_collinear = True
+                    else:
+                        force_position = 13
+                        is_collinear = False
+
+        scf_line = []
+        with open(self.output_filename, 'rt') as f:
+            is_modified = -1
+            for line in f:
+                if "Finished reading input file 'control.update.in'" in line:
+                    is_modified = True
+                if line.startswith('  SCF'):
+                    if len(line.split()) > 10:
+                        scf_line.append(line.strip())
+                        if line.split()[force_position] != '.':
+                            scf_line = []
+                            is_modified = False
+
+        rho_d = []
+        rho_s = []
+        eev = []
+        etot = []
+        if is_collinear:
+            for line in scf_line:
+                rho_d.append(float(line.split()[5]))
+                rho_s.append(float(line.split()[6]))
+                eev.append(float(line.split()[10]))
+                etot.append(float(line.split()[12]))
+        else:
+            for line in scf_line:
+                rho_d.append(float(line.split()[5]))
+                eev.append(float(line.split()[9]))
+                etot.append(float(line.split()[11]))
+
+        if is_modified and os.path.isfile('control.update.in'):
+            print('rmming update.in')
+            os.unlink('control.update.in')
+
+        if len(scf_line) < self.min_scf_steps:
+            return False  # SKIP CHECK if less than n SCF cycles
+
+        if all(rho_d) > sc_rho and all(eev) > sc_eev and all(etot) > sc_tot:
+            print('non-convergent, needs fix', self.stage_224, self.stage_112)
+            if not self.stage_224 and not self.stage_112:
+                with open('control.update.in', 'wt') as f:
+                    f.write('sc_accuracy_rho 1e-2\n')
+                    f.write('sc_accuracy_eev 1e-2\n')
+                    f.write('sc_accuracy_etot 1e-4')
+                    self.stage_224 = True
+                    self.min_scf_steps += 100
+            elif self.stage_224 and not self.stage_112:
+                with open('control.update.in', 'wt') as f:
+                    f.write('sc_accuracy_rho 1e-1\n')
+                    f.write('sc_accuracy_eev 1e-1\n')
+                    f.write('sc_accuracy_etot 1e-2')
+                    self.stage_112 = True
+                    self.min_scf_steps += 150
+            elif self.stage_224 and self.stage_112:
+                print('handler out of choices, please implement more solutions...')
+                # return True  # HARD ABORT - treat as Error as this point
+
+    def correct(self):
+        backup(AIMS_BACKUP_FILES | {self.output_filename})
+        actions = []
+        return {"errors": ["Non-convergent"], "actions": actions}
