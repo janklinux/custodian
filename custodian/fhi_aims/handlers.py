@@ -178,10 +178,13 @@ class ConvergenceEnhancer(ErrorHandler):
                 eev.append(float(line.split()[9]))
                 etot.append(float(line.split()[11]))
 
+        log_out.write('MOD: {}'.format(is_modified))
+
         if is_modified and os.path.isfile('control.update.in'):
-            if self.stage_224 or self.stage_112 and not is_converged:
-                log_out.write('rmming update.in\n')
-                os.unlink('control.update.in')
+            if self.stage_224 or self.stage_112:
+                if not is_converged:
+                    log_out.write('rmming update.in\n')
+                    os.unlink('control.update.in')
             else:
                 with open('control.update.in', 'wt') as f:
                     f.write('sc_accuracy_rho {:3.3e}\n'.format(sc_rho))
