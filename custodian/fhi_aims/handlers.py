@@ -28,8 +28,7 @@ AIMS_BACKUP_FILES = {"run", "geometry.in.next_step"}
 
 class AimsRelaxHandler(ErrorHandler):
     """
-    Master VaspErrorHandler class that handles a number of common errors
-    that occur during VASP runs.
+    Master Handler class that handles a number of common errors and tunes
     """
 
     is_monitor = False
@@ -44,16 +43,10 @@ class AimsRelaxHandler(ErrorHandler):
         Initializes the handler with the output file to check.
 
         Args:
-            output_filename (str): This is the file where the stdout for vasp
+            output_filename (str): This is the file where the stdout
                 is being redirected. The error messages that are checked are
-                present in the stdout. Defaults to "vasp.out", which is the
-                default redirect used by :class:`custodian.vasp.jobs.VaspJob`.
-
-                ```
-                subset = list(VaspErrorHandler.error_msgs.keys())
-                subset.pop("eddrrm")
-                handler = VaspErrorHandler(errors_subset_to_catch=subset)
-                ```
+                present in the stdout. Defaults to "run", which is the
+                default redirect used by :class:`custodian.fhi_aims.jobs.AimsJob`.
         """
         self.output_filename = output_filename
         self.errors = set()
@@ -84,8 +77,7 @@ class AimsRelaxHandler(ErrorHandler):
 
 class FrozenJobErrorHandler(ErrorHandler):
     """
-    Detects an error when the output file has not been updated
-    in timeout seconds. Changes ALGO to Normal from Fast
+    Detects an error when the output file has not been updated in timeout seconds, no fix for that
     """
 
     is_monitor = True
@@ -125,11 +117,12 @@ class ConvergenceEnhancer(ErrorHandler):
 
     is_monitor = True
 
-    def __init__(self, output_filename='run', min_scf_steps=150):
+    def __init__(self, output_filename='run', min_scf_steps=50):
         self.output_filename = output_filename
         self.min_scf_steps = min_scf_steps
         self.stage_224 = False
         self.stage_112 = False
+        self.mod_count = 0
 
     def check(self):
         sc_rho = -1
@@ -154,9 +147,12 @@ class ConvergenceEnhancer(ErrorHandler):
         scf_line = []
         with open(self.output_filename, 'rt') as f:
             is_modified = -1
+            is_converged = False
             for line in f:
                 if "Finished reading input file 'control.update.in'" in line:
                     is_modified = True
+                if is_modified and 'Self-consistency cycle converged.' in line:
+                    is_converged = True
                 if line.startswith('  SCF'):
                     if len(line.split()) > 10:
                         scf_line.append(line.strip())
@@ -181,11 +177,21 @@ class ConvergenceEnhancer(ErrorHandler):
                 etot.append(float(line.split()[11]))
 
         if is_modified and os.path.isfile('control.update.in'):
-            print('rmming update.in')
-            os.unlink('control.update.in')
+            if self.stage_224 or self.stage_112 and not is_converged:
+                print('rmming update.in')
+                os.unlink('control.update.in')
+            else:
+                with open('control.update.in', 'wt') as f:
+                    f.write('sc_accuracy_rho {:3.3e}\n'.format(sc_rho))
+                    f.write('sc_accuracy_eev {:3.3e}\n'.format(sc_eev))
+                    f.write('sc_accuracy_etot {:3.3e}'.format(sc_tot))
+                    self.mod_count += 1
+                    print('Number of modifications: {:2d}\n'.format(self.mod_count))
 
         if len(scf_line) < self.min_scf_steps:
             return False  # SKIP CHECK if less than n SCF cycles
+
+        print('STEPS NOW: ', self.min_scf_steps)
 
         if all(rho_d) > sc_rho and all(eev) > sc_eev and all(etot) > sc_tot:
             print('non-convergent, needs fix', self.stage_224, self.stage_112)
@@ -196,6 +202,7 @@ class ConvergenceEnhancer(ErrorHandler):
                     f.write('sc_accuracy_etot 1e-4')
                     self.stage_224 = True
                     self.min_scf_steps += 100
+                    print('STEPS NOW: ', self.min_scf_steps)
             elif self.stage_224 and not self.stage_112:
                 with open('control.update.in', 'wt') as f:
                     f.write('sc_accuracy_rho 1e-1\n')
@@ -203,6 +210,7 @@ class ConvergenceEnhancer(ErrorHandler):
                     f.write('sc_accuracy_etot 1e-2')
                     self.stage_112 = True
                     self.min_scf_steps += 150
+                    print('STEPS NOW: ', self.min_scf_steps)
             elif self.stage_224 and self.stage_112:
                 print('handler out of choices, please implement more solutions...')
                 # return True  # HARD ABORT - treat as Error as this point
