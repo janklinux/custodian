@@ -124,33 +124,41 @@ class ConvergenceEnhancer(ErrorHandler):
         self.stage_112 = False
         self.mod_count = 0
         self.t0 = time.time()
+        self.settings_restored = False
+        self.sc_rho = -1
+        self.sc_eev = -1
+        self.sc_tot = -1
+        with open('control.in', 'r') as f:
+            for line in f:
+                if ' sc_accuracy_rho ' in line:
+                    self.sc_rho = float(line.split()[1])
+                if ' sc_accuracy_eev ' in line:
+                    self.sc_eev = float(line.split()[1])
+                if ' sc_accuracy_etot ' in line:
+                    self.sc_tot = float(line.split()[1])
+                if ' spin ' in line:
+                    if line.split()[1] == 'collinear':
+                        self.force_position = 14
+                        self.is_collinear = True
+                    else:
+                        self.force_position = 13
+                        self.is_collinear = False
 
     def check(self):
-        sc_rho = -1
-        sc_eev = -1
-        sc_tot = -1
-        with open('control.in', 'rt') as f:
-            for line in f:
-                if 'sc_accuracy_rho' in line:
-                    sc_rho = float(line.split()[1])
-                if 'sc_accuracy_eev' in line:
-                    sc_eev = float(line.split()[1])
-                if 'sc_accuracy_etot' in line:
-                    sc_tot = float(line.split()[1])
-                if 'spin' in line:
-                    if line.split()[1] == 'collinear':
-                        force_position = 14
-                        is_collinear = True
-                    else:
-                        force_position = 13
-                        is_collinear = False
+        if self.sc_rho == -1 or self.sc_eev == -1 or self.sc_tot == -1:
+            with open('ERROR', 'w') as f:
+                f.write('one of rho, eev or etot are not specified, ABORT')
+            return True
 
         log_out = open('LOG_OUT', 'a+')
+
+        log_out.write('LIST original parameters: rho: {:3.3e} | eev: {:3.3e} | etot: {:3.3e}\n'
+                      .format(self.sc_rho, self.sc_eev, self.sc_tot))
 
         log_out.write('RUNTIME: {}\n'.format(time.time()-self.t0))
 
         scf_line = []
-        with open(self.output_filename, 'rt') as f:
+        with open(self.output_filename, 'r') as f:
             is_modified = -1
             is_converged = False
             for line in f:
@@ -161,7 +169,7 @@ class ConvergenceEnhancer(ErrorHandler):
                 if line.startswith('  SCF'):
                     if len(line.split()) > 10:
                         scf_line.append(line.strip())
-                        if line.split()[force_position] != '.':
+                        if line.split()[self.force_position] != '.':
                             scf_line = []
                             is_modified = False
 
@@ -169,7 +177,7 @@ class ConvergenceEnhancer(ErrorHandler):
         rho_s = []
         eev = []
         etot = []
-        if is_collinear:
+        if self.is_collinear:
             for line in scf_line:
                 rho_d.append(float(line.split()[5]))
                 rho_s.append(float(line.split()[6]))
@@ -183,28 +191,34 @@ class ConvergenceEnhancer(ErrorHandler):
 
         log_out.write('MOD: {}\n'.format(self.mod_count))
 
+        if self.settings_restored:
+            log_out.write('RESTORE original parameters: rho: {:3.3e} | eev: {:3.3e} | etot: {:3.3e}\n'
+                          .format(self.sc_rho, self.sc_eev, self.sc_tot))
+            self.settings_restored = False
+
         if is_modified and os.path.isfile('control.update.in'):
             if self.stage_224 or self.stage_112:
                 if not is_converged:
-                    log_out.write('rmming update.in\n')
+                    log_out.write('moving update.in outa teh weh\n')
                     os.rename('control.update.in', 'last_update_parameters')
-            else:
-                with open('control.update.in', 'wt') as f:
-                    f.write('sc_accuracy_rho {:3.3e}\n'.format(sc_rho))
-                    f.write('sc_accuracy_eev {:3.3e}\n'.format(sc_eev))
-                    f.write('sc_accuracy_etot {:3.3e}'.format(sc_tot))
-                self.mod_count += 1
-                log_out.write('Number of modifications: {:2d}\n'.format(self.mod_count))
+                else:
+                    with open('control.update.in', 'w') as f:
+                        f.write('sc_accuracy_rho {:3.3e}\n'.format(self.sc_rho))
+                        f.write('sc_accuracy_eev {:3.3e}\n'.format(self.sc_eev))
+                        f.write('sc_accuracy_etot {:3.3e}'.format(self.sc_tot))
+                    self.settings_restored = True
+                    self.mod_count += 1
+                    log_out.write('Number of modifications: {:2d}\n'.format(self.mod_count))
 
         if len(scf_line) < self.min_scf_steps:
             return False  # SKIP CHECK if less than n SCF cycles
 
         log_out.write('STEPS NOW 1: {}\n'.format(self.min_scf_steps))
 
-        if all(rho_d) > sc_rho and all(eev) > sc_eev and all(etot) > sc_tot:
+        if all(rho_d) > self.sc_rho and all(eev) > self.sc_eev and all(etot) > self.sc_tot:
             log_out.write('non-convergent, needs fix {} {}\n'.format(self.stage_224, self.stage_112))
             if not self.stage_224 and not self.stage_112:
-                with open('control.update.in', 'wt') as f:
+                with open('control.update.in', 'w') as f:
                     f.write('sc_accuracy_rho 1e-2\n')
                     f.write('sc_accuracy_eev 1e-2\n')
                     f.write('sc_accuracy_etot 1e-4')
@@ -212,7 +226,7 @@ class ConvergenceEnhancer(ErrorHandler):
                 self.min_scf_steps += 50
                 log_out.write('STEPS NOW 2: {}\n'.format(self.min_scf_steps))
             elif self.stage_224 and not self.stage_112:
-                with open('control.update.in', 'wt') as f:
+                with open('control.update.in', 'w') as f:
                     f.write('sc_accuracy_rho 1e-1\n')
                     f.write('sc_accuracy_eev 1e-1\n')
                     f.write('sc_accuracy_etot 1e-2')
