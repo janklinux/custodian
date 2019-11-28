@@ -234,8 +234,13 @@ class ConvergenceEnhancer(ErrorHandler):
                 self.min_scf_steps += 20
                 log_out.write('STEPS NOW 3: {}\n'.format(self.min_scf_steps))
             elif self.stage_224 and self.stage_112:
-                log_out.write('handler out of choices, please implement more solutions...\n')
-                # return True  # HARD ABORT - treat as Error as this point
+                if self.is_collinear:
+                    log_out.write('at this point manual intervantion is needed, please '
+                                  'check the initial moments as a first improvement step\n')
+                    return True  # HARD ABORT - treat as Error as this point
+                else:
+                    log_out.write('handler out of choices, please implement more solutions...\n')
+                    return True  # HARD ABORT - treat as Error as this point
 
         log_out.close()
 
