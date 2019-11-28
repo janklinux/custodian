@@ -192,8 +192,10 @@ class ConvergenceEnhancer(ErrorHandler):
         log_out.write('MOD: {}\n'.format(self.mod_count))
 
         if self.settings_restored:
-            log_out.write('RESTORE original parameters: rho: {:3.3e} | eev: {:3.3e} | etot: {:3.3e}\n'
+            log_out.write('RESTORED original parameters: rho: {:3.3e} | eev: {:3.3e} | etot: {:3.3e}\n'
                           .format(self.sc_rho, self.sc_eev, self.sc_tot))
+            log_out.write('moving HELPER out of way...\n')
+            os.rename('control.update.in', 'last_applied_update_parameters_which_converged')
             self.settings_restored = False
 
         if is_modified and os.path.isfile('control.update.in'):
@@ -237,10 +239,10 @@ class ConvergenceEnhancer(ErrorHandler):
                 if self.is_collinear:
                     log_out.write('at this point manual intervantion is needed, please '
                                   'check the initial moments as a first improvement step\n')
-                    return True  # HARD ABORT - treat as Error as this point
+                    # return True  # HARD ABORT - treat as Error as this point
                 else:
                     log_out.write('handler out of choices, please implement more solutions...\n')
-                    return True  # HARD ABORT - treat as Error as this point
+                    # return True  # HARD ABORT - treat as Error as this point
 
         log_out.close()
 
