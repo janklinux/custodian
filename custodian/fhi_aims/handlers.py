@@ -147,7 +147,7 @@ class ConvergenceEnhancer(ErrorHandler):
 
         log_out = open('LOG_OUT', 'a+')
 
-        log_out.write('RUNTIME: {}'.format(time.time()-self.t0))
+        log_out.write('RUNTIME: {}\n'.format(time.time()-self.t0))
 
         scf_line = []
         with open(self.output_filename, 'rt') as f:
