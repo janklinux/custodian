@@ -187,7 +187,7 @@ class ConvergenceEnhancer(ErrorHandler):
             if self.stage_224 or self.stage_112:
                 if not is_converged:
                     log_out.write('rmming update.in\n')
-                    os.remove('control.update.in')
+                    os.rename('control.update.in', 'last_update_parameters')
             else:
                 with open('control.update.in', 'wt') as f:
                     f.write('sc_accuracy_rho {:3.3e}\n'.format(sc_rho))
