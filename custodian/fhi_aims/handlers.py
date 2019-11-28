@@ -117,7 +117,7 @@ class ConvergenceEnhancer(ErrorHandler):
 
     is_monitor = True
 
-    def __init__(self, output_filename='run', min_scf_steps=50):
+    def __init__(self, output_filename='run', min_scf_steps=250):
         self.output_filename = output_filename
         self.min_scf_steps = min_scf_steps
         self.stage_224 = False
@@ -225,7 +225,7 @@ class ConvergenceEnhancer(ErrorHandler):
                     f.write('sc_accuracy_eev 1e-2\n')
                     f.write('sc_accuracy_etot 1e-4')
                 self.stage_224 = True
-                self.min_scf_steps += 50
+                self.min_scf_steps += 100
                 log_out.write('STEPS NOW 2: {}\n'.format(self.min_scf_steps))
             elif self.stage_224 and not self.stage_112:
                 with open('control.update.in', 'w') as f:
@@ -233,7 +233,7 @@ class ConvergenceEnhancer(ErrorHandler):
                     f.write('sc_accuracy_eev 1e-1\n')
                     f.write('sc_accuracy_etot 1e-2')
                 self.stage_112 = True
-                self.min_scf_steps += 20
+                self.min_scf_steps += 100
                 log_out.write('STEPS NOW 3: {}\n'.format(self.min_scf_steps))
             elif self.stage_224 and self.stage_112:
                 if self.is_collinear:
