@@ -82,7 +82,7 @@ class FrozenJobErrorHandler(ErrorHandler):
 
     is_monitor = True
 
-    def __init__(self, output_filename="run", timeout=21600):
+    def __init__(self, output_filename="run", timeout=3600):
         """
         Initializes the handler with the output file to check.
 
@@ -123,6 +123,7 @@ class ConvergenceEnhancer(ErrorHandler):
         self.stage_224 = False
         self.stage_112 = False
         self.mod_count = 0
+        self.t0 = time.time()
 
     def check(self):
         sc_rho = -1
@@ -145,6 +146,8 @@ class ConvergenceEnhancer(ErrorHandler):
                         is_collinear = False
 
         log_out = open('LOG_OUT', 'a+')
+
+        log_out.write('RUNTIME: {}'.format(time.time()-self.t0))
 
         scf_line = []
         with open(self.output_filename, 'rt') as f:
