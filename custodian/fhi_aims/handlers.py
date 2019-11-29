@@ -4,10 +4,13 @@ from __future__ import unicode_literals, division
 
 import os
 import time
+import numpy as np
+
 from collections import Counter
 
-from custodian.custodian import ErrorHandler
 from custodian.utils import backup
+from custodian.custodian import ErrorHandler
+
 
 """
 This module implements specific error handlers for VASP runs. These handlers
@@ -67,13 +70,88 @@ class AimsRelaxHandler(ErrorHandler):
     def correct(self):
         backup(AIMS_BACKUP_FILES | {self.output_filename})
         actions = []
+        init_cons = []
 
         if "energy_F_inconsistent" in self.errors:
-            os.rename('geometry.in.next_step', 'geometry.in')
+            with open('geometry.in', 'rt') as f:
+                content = f.readlines()
+            for i, line in enumerate(content):
+                if 'atom' in line:
+                    init_cons.append(self.check_constraints(content, i+1, total_lines=len(content)))
+
+            k = 0
+            content = []
+            with open('geometry.in.next_step', 'rt') as f:
+                for line in f:
+                    if 'lattice_vector ' in line:
+                        content.append(line)
+                    if 'atom' in line:
+                        content.append(line)
+                        if init_cons[k][0]:
+                            content.append('  initial_moment {:3.3f}\n'.format(init_cons[k][0]))
+                        print(init_cons[k][1][0], init_cons[k][1][1], init_cons[k][1][2])
+                        if init_cons[k][1][0] and init_cons[k][1][1] and init_cons[k][1][2]:
+                            content.append('  constrain_relaxation .true.\n')
+                        else:
+                            if init_cons[k][1][0]:
+                                content.append('  constrain_relaxation x\n')
+                            if init_cons[k][1][1]:
+                                content.append('  constrain_relaxation y\n')
+                            if init_cons[k][1][2]:
+                                content.append('  constrain_relaxation z\n')
+
+            if not os.path.isfile('user_supplied_geometry.in'):
+                os.rename('geometry.in', 'user_supplied_geometry.in')
+
+            with open('geometry.in', 'wt') as f:
+                for line in content:
+                    f.write(line)
+
+            print(content)
+
             actions.append({'fixed': 'geo_step -> geo'})
 
         return {"errors": list(self.errors), "actions": actions}
 
+    def check_constraints(self, cont, ln, total_lines):
+        inmom = False
+        flags = [False, False, False]
+
+        if ln >= total_lines:
+            return flags
+
+        next_line = cont[ln]
+        k = 0
+
+        if 'initial_moment' in next_line:
+            inmom = float(next_line.split()[1])
+
+        if 'constrain_relaxation ' in next_line:
+            limit = np.min([3, total_lines - ln])
+            check_lines = cont[ln:ln+limit]
+            check = check_lines[k].strip()
+            while 'constrain_relaxation ' in check:
+                print(check)
+                try:
+                    word = check.split()
+                    if word[1] == '.true.':
+                        flags = [True, True, True]
+                    if word[1].lower() == 'x':
+                        flags[0] = True
+                    if word[1].lower() == 'y':
+                        flags[1] = True
+                    if word[1].lower() == 'z':
+                        flags[2] = True
+                except ValueError:
+                    raise ValueError("Error reading constraints from line '" + check + "'")
+
+                k += 1
+
+                if k == len(check_lines):
+                    break
+                check = check_lines[k].strip()
+
+        return inmom, flags
 
 class FrozenJobErrorHandler(ErrorHandler):
     """
