@@ -1,4 +1,4 @@
 numpy
 monty==3.0.2
 ruamel.yaml==0.16.5
-sentry-sdk==0.13.4
+sentry-sdk==0.13.5
