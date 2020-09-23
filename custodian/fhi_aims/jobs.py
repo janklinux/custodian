@@ -14,7 +14,7 @@ from custodian.custodian import Job
 
 
 """
-This module implements basic kinds of jobs for VASP runs.
+This module implements basic kinds of jobs for FHI-aims runs.
 """
 
 
@@ -56,43 +56,13 @@ class AimsJob(Job):
             stderr_file (str): Name of file to direct standard error to.
                 Defaults to "std_err.txt".
             suffix (str): A suffix to be appended to the final output. E.g.,
-                to rename all VASP output from say vasp.out to
-                vasp.out.relax1, provide ".relax1" as the suffix.
-            final (bool): Indicating whether this is the final vasp job in a
+                to rename all output from say s.out to
+                s.out.relax1, provide ".relax1" as the suffix.
+            final (bool): Indicating whether this is the final job in a
                 series. Defaults to True.
             backup (bool): Whether to backup the initial input files. If True,
-                the INCAR, KPOINTS, POSCAR and POTCAR will be copied with a
+                the control.in and geometry.in will be copied with a
                 ".orig" appended. Defaults to True.
-            auto_npar (bool): Whether to automatically tune NPAR to be sqrt(
-                number of cores) as recommended by VASP for DFT calculations.
-                Generally, this results in significant speedups. Defaults to
-                True. Set to False for HF, GW and RPA calculations.
-            auto_gamma (bool): Whether to automatically check if run is a
-                Gamma 1x1x1 run, and whether a Gamma optimized version of
-                VASP exists with ".gamma" appended to the name of the VASP
-                executable (typical setup in many systems). If so, run the
-                gamma optimized version of VASP instead of regular VASP. You
-                can also specify the gamma vasp command using the
-                gamma_vasp_cmd argument if the command is named differently.
-            settings_override ([dict]): An ansible style list of dict to
-                override changes. For example, to set ISTART=1 for subsequent
-                runs and to copy the CONTCAR to the POSCAR, you will provide::
-
-                    [{"dict": "INCAR", "action": {"_set": {"ISTART": 1}}},
-                     {"file": "CONTCAR",
-                      "action": {"_file_copy": {"dest": "POSCAR"}}}]
-            gamma_vasp_cmd (str): Command for gamma vasp version when
-                auto_gamma is True. Should follow the list style of
-                subprocess. Defaults to None, which means ".gamma" is added
-                to the last argument of the standard vasp_cmd.
-            copy_magmom (bool): Whether to copy the final magmom from the
-                OUTCAR to the next INCAR. Useful for multi-relaxation runs
-                where the CHGCAR and WAVECAR are sometimes deleted (due to
-                changes in fft grid, etc.). Only applies to non-final runs.
-            auto_continue (bool): Whether to automatically continue a run
-                if a STOPCAR is present. This is very useful if using the
-                wall-time handler which will write a read-only STOPCAR to
-                prevent VASP from deleting it once it finishes
         """
         self.aims_cmd = aims_cmd
         self.output_file = output_file
@@ -114,22 +84,18 @@ class AimsJob(Job):
             for f in AIMS_INPUT_FILES:
                 shutil.copy(f, "{}.orig".format(f))
 
-        if self.auto_continue:
-                actions = [{"file": "geometry.in.next_step",
-                            "action": {"_file_copy": {"dest": "geometry.in"}}}]
         return actions
 
     def run(self):
         """
-        Perform the actual VASP run.
+        Perform the actual run.
 
         Returns:
             (subprocess.Popen) Used for monitoring.
         """
         cmd = list(self.aims_cmd)
         logger.info("Running {}".format(" ".join(cmd)))
-        with open(self.output_file, 'w') as f_std, \
-                open(self.stderr_file, "w", buffering=1) as f_err:
+        with open(self.output_file, 'w') as f_std, open(self.stderr_file, "w", buffering=1) as f_err:
             # use line buffering for stderr
             p = subprocess.Popen(cmd, stdout=f_std, stderr=f_err)
         return p
@@ -150,6 +116,78 @@ class AimsJob(Job):
         if os.path.exists("continue.json"):
             os.remove("continue.json")
 
+        scf = dict()
+        i_step = 0
+
+        parse_atoms = False
+        parse_forces = False
+        parse_stress = False
+
+        with open('run', 'r') as f:
+            for line in f:
+                if '| Number of atoms' in line:
+                    n_atoms = int(line.split()[5])
+                if 'Begin self-consistency loop:' in line:
+                    i_step += 1
+                    i_atom = 0
+                    i_force = 0
+                    scf[i_step] = {'atoms': [], 'forces': [], 'lattice': [], 'stress': [],
+                                   'species': [], 'energy': 0.0}
+                if '| Total energy                  :' in line:
+                    scf[i_step]['energy'] = float(line.split()[6])
+                if parse_forces:
+                    scf[i_step]['forces'].append([float(x) for x in line.split()[2:5]])
+                    i_force += 1
+                    if i_force == n_atoms:
+                        parse_forces = False
+                if 'Total atomic forces (unitary forces cleaned) [eV/Ang]:' in line:
+                    parse_forces = True
+                if parse_atoms:
+                    if 'lattice' in line:
+                        scf[i_step]['lattice'].append([float(x) for x in line.split()[1:4]])
+                    elif len(line.split()) == 0:
+                        continue
+                    else:
+                        scf[i_step]['atoms'].append([float(x) for x in line.split()[1:4]])
+                        scf[i_step]['species'].append(line.split()[4])
+                        i_atom += 1
+                    if i_atom == n_atoms:
+                        parse_atoms = False
+                if 'x [A]             y [A]             z [A]' in line:
+                    parse_atoms = True
+                if parse_stress:
+                    if '|  x       ' in line:
+                        scf[i_step]['stress'].append([float(x) for x in line.split()[2:5]])
+                    if '|  y       ' in line:
+                        scf[i_step]['stress'].append([float(x) for x in line.split()[2:5]])
+                    if '|  z       ' in line:
+                        scf[i_step]['stress'].append([float(x) for x in line.split()[2:5]])
+                    if '|  Pressure:' in line:
+                        parse_stress = False
+                if 'Analytical stress tensor - Symmetrized' in line:
+                    parse_stress = True
+
+        with open('parsed.xyz', 'w') as f:
+            for i in range(1, len(scf) + 1):
+                f.write('{}\n'.format(n_atoms))
+                f.write('Lattice="{:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f}" '
+                        'Properties=species:S:1:pos:R:3:forces:R:3:force_mask:L:1'
+                        ' stress="{:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f}" '
+                        ' free_energy={:6.6f} pbc="T T T"'
+                        ' config_type=cluster\n'.format(
+                    scf[i]['lattice'][0][0], scf[i]['lattice'][0][1], scf[i]['lattice'][0][2],
+                    scf[i]['lattice'][1][0], scf[i]['lattice'][1][1], scf[i]['lattice'][1][2],
+                    scf[i]['lattice'][2][0], scf[i]['lattice'][2][1], scf[i]['lattice'][2][2],
+                    scf[i]['stress'][0][0], scf[i]['stress'][0][1], scf[i]['stress'][0][2],
+                    scf[i]['stress'][1][0], scf[i]['stress'][1][1], scf[i]['stress'][1][2],
+                    scf[i]['stress'][2][0], scf[i]['stress'][2][1], scf[i]['stress'][2][2],
+                    scf[i]['energy']))
+                for j in range(len(scf[i]['atoms'])):
+                    f.write('{} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} 0\n'.
+                            format(scf[i]['species'][j],
+                                   scf[i]['atoms'][j][0], scf[i]['atoms'][j][1], scf[i]['atoms'][j][2],
+                                   scf[i]['forces'][j][0], scf[i]['forces'][j][1], scf[i]['forces'][j][2]))
+                f.write('\n')
 
     @classmethod
     def tddft_run(cls, aims_cmd):
