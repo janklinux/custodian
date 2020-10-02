@@ -169,19 +169,29 @@ class AimsJob(Job):
 
         with open('parsed.xyz', 'w') as f:
             for i in range(1, len(scf) + 1):
+                vol = np.abs(np.dot(scf[i]['lattice'][0], np.cross(scf[i]['lattice'][1], scf[i]['lattice'][2])))
+                stress = np.array([[scf[i]['stress'][0][0], scf[i]['stress'][0][1], scf[i]['stress'][0][2]],
+                                   [scf[i]['stress'][1][0], scf[i]['stress'][1][1], scf[i]['stress'][1][2]],
+                                   [scf[i]['stress'][2][0], scf[i]['stress'][2][1], scf[i]['stress'][2][2]]])
+                virial = - np.dot(vol, stress)
                 f.write('{}\n'.format(n_atoms))
                 f.write('Lattice="{:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f}" '
                         'Properties=species:S:1:pos:R:3:forces:R:3:force_mask:L:1'
+                        ' virial="{:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f}" '
                         ' stress="{:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f}" '
                         ' free_energy={:6.6f} pbc="T T T"'
                         ' config_type=cluster\n'.format(
-                    scf[i]['lattice'][0][0], scf[i]['lattice'][0][1], scf[i]['lattice'][0][2],
-                    scf[i]['lattice'][1][0], scf[i]['lattice'][1][1], scf[i]['lattice'][1][2],
-                    scf[i]['lattice'][2][0], scf[i]['lattice'][2][1], scf[i]['lattice'][2][2],
-                    scf[i]['stress'][0][0], scf[i]['stress'][0][1], scf[i]['stress'][0][2],
-                    scf[i]['stress'][1][0], scf[i]['stress'][1][1], scf[i]['stress'][1][2],
-                    scf[i]['stress'][2][0], scf[i]['stress'][2][1], scf[i]['stress'][2][2],
-                    scf[i]['energy']))
+                            scf[i]['lattice'][0][0], scf[i]['lattice'][0][1], scf[i]['lattice'][0][2],
+                            scf[i]['lattice'][1][0], scf[i]['lattice'][1][1], scf[i]['lattice'][1][2],
+                            scf[i]['lattice'][2][0], scf[i]['lattice'][2][1], scf[i]['lattice'][2][2],
+                            virial[0][0], virial[0][1], virial[0][2],
+                            virial[1][0], virial[1][1], virial[1][2],
+                            virial[2][0], virial[2][1], virial[2][2],
+                            scf[i]['stress'][0][0], scf[i]['stress'][0][1], scf[i]['stress'][0][2],
+                            scf[i]['stress'][1][0], scf[i]['stress'][1][1], scf[i]['stress'][1][2],
+                            scf[i]['stress'][2][0], scf[i]['stress'][2][1], scf[i]['stress'][2][2],
+                            scf[i]['energy']))
+
                 for j in range(len(scf[i]['atoms'])):
                     f.write('{} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} 0\n'.
                             format(scf[i]['species'][j],
@@ -198,7 +208,6 @@ class AimsJob(Job):
         """
 
         pass
-
 
     @classmethod
     def full_opt_run(cls, aims_cmd, converged_forces=0.01, max_steps=10, **aims_job_kwargs):
