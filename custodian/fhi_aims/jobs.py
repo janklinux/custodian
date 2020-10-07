@@ -116,89 +116,6 @@ class AimsJob(Job):
         if os.path.exists("continue.json"):
             os.remove("continue.json")
 
-        scf = dict()
-        i_step = 0
-
-        parse_atoms = False
-        parse_forces = False
-        parse_stress = False
-
-        with open('run', 'r') as f:
-            for line in f:
-                if '| Number of atoms' in line:
-                    n_atoms = int(line.split()[5])
-                if 'Begin self-consistency loop:' in line:
-                    i_step += 1
-                    i_atom = 0
-                    i_force = 0
-                    scf[i_step] = {'atoms': [], 'forces': [], 'lattice': [], 'stress': [],
-                                   'species': [], 'energy': 0.0}
-                if '| Total energy                  :' in line:
-                    scf[i_step]['energy'] = float(line.split()[6])
-                if parse_forces:
-                    scf[i_step]['forces'].append([float(x) for x in line.split()[2:5]])
-                    i_force += 1
-                    if i_force == n_atoms:
-                        parse_forces = False
-                if 'Total atomic forces (unitary forces cleaned) [eV/Ang]:' in line:
-                    parse_forces = True
-                if parse_atoms:
-                    if 'lattice' in line:
-                        scf[i_step]['lattice'].append([float(x) for x in line.split()[1:4]])
-                    elif len(line.split()) == 0:
-                        continue
-                    else:
-                        scf[i_step]['atoms'].append([float(x) for x in line.split()[1:4]])
-                        scf[i_step]['species'].append(line.split()[4])
-                        i_atom += 1
-                    if i_atom == n_atoms:
-                        parse_atoms = False
-                if 'x [A]             y [A]             z [A]' in line:
-                    parse_atoms = True
-                if parse_stress:
-                    if '|  x       ' in line:
-                        scf[i_step]['stress'].append([float(x) for x in line.split()[2:5]])
-                    if '|  y       ' in line:
-                        scf[i_step]['stress'].append([float(x) for x in line.split()[2:5]])
-                    if '|  z       ' in line:
-                        scf[i_step]['stress'].append([float(x) for x in line.split()[2:5]])
-                    if '|  Pressure:' in line:
-                        parse_stress = False
-                if 'Analytical stress tensor - Symmetrized' in line:
-                    parse_stress = True
-
-        with open('parsed.xyz', 'w') as f:
-            for i in range(1, len(scf) + 1):
-                vol = np.abs(np.dot(scf[i]['lattice'][0], np.cross(scf[i]['lattice'][1], scf[i]['lattice'][2])))
-                stress = np.array([[scf[i]['stress'][0][0], scf[i]['stress'][0][1], scf[i]['stress'][0][2]],
-                                   [scf[i]['stress'][1][0], scf[i]['stress'][1][1], scf[i]['stress'][1][2]],
-                                   [scf[i]['stress'][2][0], scf[i]['stress'][2][1], scf[i]['stress'][2][2]]])
-                virial = - np.dot(vol, stress)
-                f.write('{}\n'.format(n_atoms))
-                f.write('Lattice="{:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f}" '
-                        'Properties=species:S:1:pos:R:3:forces:R:3:force_mask:L:1'
-                        ' virial="{:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f}" '
-                        ' stress="{:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f}" '
-                        ' free_energy={:6.6f} pbc="T T T"'
-                        ' config_type=cluster\n'.format(
-                            scf[i]['lattice'][0][0], scf[i]['lattice'][0][1], scf[i]['lattice'][0][2],
-                            scf[i]['lattice'][1][0], scf[i]['lattice'][1][1], scf[i]['lattice'][1][2],
-                            scf[i]['lattice'][2][0], scf[i]['lattice'][2][1], scf[i]['lattice'][2][2],
-                            virial[0][0], virial[0][1], virial[0][2],
-                            virial[1][0], virial[1][1], virial[1][2],
-                            virial[2][0], virial[2][1], virial[2][2],
-                            scf[i]['stress'][0][0], scf[i]['stress'][0][1], scf[i]['stress'][0][2],
-                            scf[i]['stress'][1][0], scf[i]['stress'][1][1], scf[i]['stress'][1][2],
-                            scf[i]['stress'][2][0], scf[i]['stress'][2][1], scf[i]['stress'][2][2],
-                            scf[i]['energy']))
-
-                for j in range(len(scf[i]['atoms'])):
-                    f.write('{} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} {:6.6f} 0\n'.
-                            format(scf[i]['species'][j],
-                                   scf[i]['atoms'][j][0], scf[i]['atoms'][j][1], scf[i]['atoms'][j][2],
-                                   scf[i]['forces'][j][0], scf[i]['forces'][j][1], scf[i]['forces'][j][2]))
-                f.write('\n')
-
     @classmethod
     def tddft_run(cls, aims_cmd):
         """
@@ -206,7 +123,6 @@ class AimsJob(Job):
         :param aims_cmd:
         :return:
         """
-
         pass
 
     @classmethod
