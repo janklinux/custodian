@@ -1,6 +1,23 @@
 Change Log
 ==========
 
+v2020.1.8
+---------
+* New handlers for VASP6 (@mkhorton, @rkingsbury)
+
+v2020.1.7
+---------
+* Improved handling of scratch directories and update for QChem.
+
+v2019.8.24
+----------
+* Cleanup codestyle, which is now enforced.
+* Py3k support only, in line with pymatgen.
+* Update dependencies.
+* Sentry support (@mkhorton).
+* Complete qchem overhaul (frequency flattening optimization, refined error
+  handlers) (@samblau)
+
 v2019.2.10
 ----------
 * Improved slow convergence handling. (@shyamd)
